@@ -5,36 +5,37 @@ https://nbviewer.jupyter.org/url/www.cs.toronto.edu/~rgrosse/courses/csc421_2019
 @author: eeltink
 """
 import matplotlib.pyplot as plt
-
+import autograd
 import autograd.numpy as np
+import autograd.numpy.random as npr
 from autograd import grad
-from autograd.misc import flatten #, flatten_func
+from autograd.misc import flatten # flatten_func
 
 from autograd.misc.optimizers import sgd
 
-def sgd(grad, init_params, callback=None, num_iters=200, step_size=0.1, mass=0.9):
-    """Stochastic gradient descent with momentum.
-    grad() must have signature grad(x, i), where i is the iteration number."""
-    flattened_grad, unflatten, x = autograd.flatten_func(grad, init_params)
+# def sgd(grad, init_params, callback=None, num_iters=200, step_size=0.1, mass=0.9):
+#     """Stochastic gradient descent with momentum.
+#     grad() must have signature grad(x, i), where i is the iteration number."""
+#     flattened_grad, unflatten, x = flatten_func(grad, init_params)
 
-    velocity = np.zeros(len(x))
-    for i in range(num_iters):
-        g = flattened_grad(x, i)
-        if callback:
-            callback(unflatten(x), i, unflatten(g))
-        velocity = mass * velocity - (1.0 - mass) * g
-        x = x + step_size * velocity
-    return unflatten(x)
+#     velocity = np.zeros(len(x))
+#     for i in range(num_iters):
+#         g = flattened_grad(x, i)
+#         if callback:
+#             callback(unflatten(x), i, unflatten(g))
+#         velocity = mass * velocity - (1.0 - mass) * g
+#         x = x + step_size * velocity
+#     return unflatten(x)
 
 #%% Generate synthetic data
-x = np.linspace(-5, 5, 1000)
+x = np.linspace(-5, 5, 1)
 t = x ** 3 - 20 * x + 10 + npr.normal(0, 4, x.shape[0])
 plt.figure()
 plt.plot(x, t, 'r.')
 
 #%% NN
 inputs = x.reshape(x.shape[-1],1)
-W1 = np.random.randn(1,4)
+W1 = npr.randn(1,4)
 b1 = npr.randn(4)
 W2 = npr.randn(4,4)
 b2 = npr.randn(4)
