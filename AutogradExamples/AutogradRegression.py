@@ -30,6 +30,7 @@ def cost(W):
     return (1.0 / N) * np.sum(0.5 * np.square(y - t))
 
 # cost before training
+print(W)
 print(cost(W))
 
 # Compute the gradient of the cost function using Autograd

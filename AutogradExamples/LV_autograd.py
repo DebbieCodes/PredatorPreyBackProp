@@ -41,12 +41,15 @@ def LotkaVolterra2(state,alpha,beta,gamma,delta):
     x = np.array(state)
     n = len(x)
     f = np.zeros(n)
-    print(beta)
-    print(x[0])
-    f[0] = alpha*x[0] - beta*x[0]*x[1] # xdot = alpha*x - beta*x*y
+    # print(beta)
+    # print(x[0])
+    # f[0] = alpha*x[0] - beta*x[0]*x[1] # xdot = alpha*x - beta*x*y
+    # f[1] = delta*x[0]*x[1] - gamma*x[1] # ydot = delta*x*y - gamma*y
+    f0 = alpha*x[0] - beta*x[0]*x[1] # xdot = alpha*x - beta*x*y
+    f1 = delta*x[0]*x[1] - gamma*x[1] # ydot = delta*x*y - gamma*y
+    output = np.array([f0, f1])
+    return output
 
-    f[1] = delta*x[0]*x[1] - gamma*x[1] # ydot = delta*x*y - gamma*y
-    return f
 
 #%% Settings
 t_end = 100
@@ -106,17 +109,19 @@ def predictStep(params, inputs): #input is previous step, # output is next step
 def predictStep2(params, inputs):
     
     state = inputs
-    rhs = LotkaVolterra2
+    
     
     alpha = params[0]
     beta = params[1]
-    gamma = params[2] 
+    gamma = params[2]
     delta = params[3]
     
-    k1 = rhs(state,alpha,beta,gamma,delta)
-    k2 = rhs(state+k1*dt/2,alpha,beta,gamma,delta)
-    k3 = rhs(state+k2*dt/2,alpha,beta,gamma,delta)
-    k4 = rhs(state+k3*dt,alpha,beta,gamma,delta)
+    k1 = LotkaVolterra2(state,alpha,beta,gamma,delta)
+    k2 = LotkaVolterra2(state+k1*dt/2,alpha,beta,gamma,delta)
+    k3 = LotkaVolterra2(state+k2*dt/2,alpha,beta,gamma,delta)
+    k4 = LotkaVolterra2(state+k3*dt,alpha,beta,gamma,delta)
+    
+    
 
     new_state = state + (dt/6)*(k1+2*k2+2*k3+k4)
     return new_state
@@ -139,17 +144,20 @@ step_i = 2
 inputs = measured_traj[step_i,:]
 targets = measured_traj[step_i+1,:]
 
-print(params_g)
-
-print(loss(params_g))
 
 
 training_step = 0.01
+print('start grad')
 training_gradient_fun = grad(loss)
 training_gradient_fun(params_g)
+print('untrained loss')
+print(params_g)
+print(loss(params_g))
 for i in range(100):
     params_g -= training_gradient_fun(params_g)*training_step
     
 # optimized_params = sgd(grad(loss), params_g, step_size=0.01, num_iters=5000)
     
-
+print('trained loss')
+print(params_g)
+print(loss(params_g))
