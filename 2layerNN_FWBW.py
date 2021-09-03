@@ -98,7 +98,7 @@ for s in range(1):
     x_values = [] # store values each layer
     x0_sample = inputs[s][:,None]
     x_values.append(x0_sample)
-    jac_J_alphas =[] # store jacobian of cost wrt to alpha
+    
 
     # 1. forward pass
     for l in range(0,n_layers,1):
@@ -121,16 +121,22 @@ for s in range(1):
     for k in range(n_layers-1,-1,-1):
         print("k =", k)
         flat_params_k, unflatten_func_k = flatten(params_tot[k])
-        jac_x_k = np.squeeze(jacob_f_to_x(flat_params_k,x_values[k],unflatten_func_k))# evalueate at this point. !!! Note I do k-1 here, while in the equations of the paper it's k... But otherwise the dimensions do not match. The parameters of layer k are for an input x_(k-1)
-        lambdas[k] = jac_x_k.T*lambdas[k+1] 
+        jac_notflat = jacob_f_to_x(flat_params_k,x_values[k],unflatten_func_k)
+        jac_x_k = jac_notflat[0,:,0,:]
+        # jac_x_k = np.squeeze(jac_notflat)#!!throws awy the wrong dimensiions
+        lambda_k = jac_x_k.T*lambdas[k+1]
+        lambdas[k] = lambda_k
         # lambdas[k] = 2*lambdas[k+1] # test if counter works correctly
         
     # 4. Parameter gradient (I guess this can also be done at the same time as the backward pass?)
+    jac_J_alphas =[] # store jacobian of cost wrt to alpha
     for j in range(0,n_layers,1):
         print("j =", j)
         flat_params_j, unflatten_func_j = flatten(params_tot[j])
         jac_alpha_j = np.squeeze(jacob_f_to_alpha(flat_params_j,x_values[j],unflatten_func_j))
-        jac_J_alpha = np.dot(jac_alpha_j.T,lambdas[j])
+        print(jac_alpha_j.shape)
+        print(lambdas[j+1].shape)
+        jac_J_alpha = np.dot(jac_alpha_j.T,lambdas[j+1])
         jac_J_alphas.append(jac_J_alpha) # Jacobian of costwrt alpha
     
     
