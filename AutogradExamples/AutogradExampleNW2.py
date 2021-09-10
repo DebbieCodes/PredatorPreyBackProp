@@ -28,7 +28,7 @@ from autograd.misc.optimizers import sgd
 #     return unflatten(x)
 
 #%% Generate synthetic data
-x = np.linspace(-5, 5, 1)
+x = np.linspace(-5, 5, 100)
 t = x ** 3 - 20 * x + 10 + npr.normal(0, 4, x.shape[0])
 plt.figure()
 plt.plot(x, t, 'r.')
@@ -54,6 +54,7 @@ def predict(params, inputs):
     h1 = nonlinearity(np.dot(inputs, params['W1']) + params['b1'])
     h2 = nonlinearity(np.dot(h1, params['W2']) + params['b2'])
     output = np.dot(h2, params['W3']) + params['b3']
+    # output =  nonlinearity(np.dot(h2, params['W3']) + params['b3'])
     return output
 
 def loss(params, i):

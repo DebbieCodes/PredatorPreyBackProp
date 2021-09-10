@@ -33,10 +33,59 @@ from autograd.misc.optimizers import sgd
 
 #%% Generate synthetic data
 n_samples = 100
+learning_rate = 0.05
+n_trainsteps = 100 # same results with 1000 training iterations
 x = np.linspace(-5, 5, n_samples)
 t = x ** 3 - 20 * x + 10 + npr.normal(0, 4, x.shape[0])
 plt.figure()
 plt.plot(x, t, 'r.')
+
+#%% Network functions
+
+# different options nonlinear function f_l can be different for different layers
+def relu(x):
+    return np.maximum(0, x)
+
+nonlinearity = np.tanh
+#nonlinearity = relu
+
+def linear_activation(x):
+    return x
+
+
+# def my_z(params_weights_l,params_biases_l,input_vec):
+#     params
+#     z = np.dot(input_vec, params_weights_l) +params_biases_l
+#     return z
+
+def f_layer(params_l_flat,input_l,unflatten_func_l,activation_function):
+    params_l=unflatten_func_l(params_l_flat)
+    weights = params_l[0]
+    biases =  params_l[1]
+    z= np.dot(input_l, weights) + biases
+    output_l = activation_function(z)
+    return output_l
+
+
+
+def predict2(params,inputs):
+    flat_params_l1, unflatten_func_l1 = flatten(params[0])
+    flat_params_l2, unflatten_func_l2 = flatten(params[1]) 
+    flat_params_l3, unflatten_func_l3 = flatten(params[2]) 
+    h1 = f_layer(flat_params_l1,inputs,unflatten_func_l1,activation_layers[0])
+    h2 = f_layer(flat_params_l2,h1, unflatten_func_l2,activation_layers[1])
+    output= f_layer(flat_params_l3,h2, unflatten_func_l3,activation_layers[2])
+    return output
+
+def predict(params, inputs):
+    h1 = nonlinearity(np.dot(inputs, params['W1']) + params['b1'])
+    h2 = nonlinearity(np.dot(h1, params['W2']) + params['b2'])
+    output = np.dot(h2, params['W3']) + params['b3']
+    return output
+
+def loss(params, i):
+    output = predict(params, inputs)
+    return (1.0 / inputs.shape[0]) * np.sum(0.5 * np.square(output.reshape(output.shape[0]) - t))
 
 #%% NN structure
 inputs = x.reshape(x.shape[-1],1)
@@ -50,105 +99,90 @@ W3 = npr.randn(4,1)
 b3 = npr.randn(1)
 # alpha = paramters
 
-
 params_tot =[[W1,b1],[W2,  b2],[W3, b3]]
 params_weights = [W1,W2,W3]
 params_biases = [b1,b2,b3]
+params_init = params_tot.copy()
 
-# different options nonlinear function f_l can be different for different layers
-def relu(x):
-    return np.maximum(0, x)
+activation_layers = [np.tanh,np.tanh,linear_activation]
 
-nonlinearity = np.tanh
-#nonlinearity = relu
+#%% Training
 
-
-
-# def my_z(params_weights_l,params_biases_l,input_vec):
-#     params
-#     z = np.dot(input_vec, params_weights_l) +params_biases_l
-#     return z
-
-def f_layer(params_l_flat,input_l,unflatten_func_l):
-    params_l=unflatten_func_l(params_l_flat)
-    weights = params_l[0]
-    biases =  params_l[1]
-    z= np.dot(input_l, weights) + biases
-    output_l = nonlinearity(z)
-    return output_l
-
-def predict(params, inputs):
-    h1 = nonlinearity(np.dot(inputs, params['W1']) + params['b1'])
-    h2 = nonlinearity(np.dot(h1, params['W2']) + params['b2'])
-    output = np.dot(h2, params['W3']) + params['b3']
-    return output
-
-def loss(params, i):
-    output = predict(params, inputs)
-    return (1.0 / inputs.shape[0]) * np.sum(0.5 * np.square(output.reshape(output.shape[0]) - t))
-
-
-
-#%% Forward pass
-n_layers=3 # number of layers
-lambdas = list(np.zeros(n_layers+1))
-
-
-for s in range(1):
-    x_values = [] # store values each layer
-    x0_sample = inputs[s][:,None]
-    x_values.append(x0_sample)
-    
-
-    # 1. forward pass
-    for l in range(0,n_layers,1):
-        print("l =", l)
-        params_l =params_tot[l]
-        input_l = x_values[l]
-        #have to flatten the paramters (i.e. make one long vector of all paramters) to calculate the jacobian later
-        flat_params_l, unflatten_func_l = flatten(params_l)
-        x_values.append(f_layer(flat_params_l,input_l,unflatten_func_l))
-        # x_values.append(nonlinearity(np.dot(x_values[l-1], params_weights[l-1]) + params_biases[l-1]))
-    
-    # 2. terminal error:
-    print(l+1)
-    lambdas[l+1] = x_values[l+1]-targets[s] # recall there are 4 x_values but only 3 layers (parameter-valued)
-    print(lambdas[3])
-    # 3. backward pass
-    # define jacobians: df/dx and df/dalpha, to be used later
-    jacob_f_to_x = jacobian(f_layer,argnum=1) # i.e. jacobian of f to its 1st argument: x / state
-    jacob_f_to_alpha = jacobian(f_layer,argnum=0) # i.e. jacobian of f to its 0th argument: alpha / parameters
-    for k in range(n_layers-1,-1,-1):
-        print("k =", k)
-        flat_params_k, unflatten_func_k = flatten(params_tot[k])
-        jac_notflat = jacob_f_to_x(flat_params_k,x_values[k],unflatten_func_k)
-        jac_x_k = jac_notflat[0,:,0,:]
-        # jac_x_k = np.squeeze(jac_notflat)#!!throws awy the wrong dimensiions
-        lambda_k = jac_x_k.T*lambdas[k+1]
-        lambdas[k] = lambda_k
-        # lambdas[k] = 2*lambdas[k+1] # test if counter works correctly
+for tt in range(n_trainsteps):
+    print(tt)
+    n_layers=4 # number of node-layers (4), which means there are 3 weights matrixes (i.e. in between connections)
+    lambdas = list(np.zeros(n_layers+1))
+    jac_J_alphas_samples = []
+    for s in range(n_samples):
+        # print("sample =", s)
+        x_values = [] # store values each layer
+        x0_sample = inputs[s][:,None]
+        x_values.append(x0_sample)
         
-    # 4. Parameter gradient (I guess this can also be done at the same time as the backward pass?)
-    jac_J_alphas =[] # store jacobian of cost wrt to alpha
-    for j in range(0,n_layers,1):
-        print("j =", j)
-        flat_params_j, unflatten_func_j = flatten(params_tot[j])
-        jac_alpha_j = np.squeeze(jacob_f_to_alpha(flat_params_j,x_values[j],unflatten_func_j))
-        print(jac_alpha_j.shape)
-        print(lambdas[j+1].shape)
-        jac_J_alpha = np.dot(jac_alpha_j.T,lambdas[j+1])
-        jac_J_alphas.append(jac_J_alpha) # Jacobian of costwrt alpha
+    
+        # %%1. forward pass
+        for l in range(0,n_layers-1,1):
+            # print("l =", l)
+            params_l =params_tot[l]
+            input_l = x_values[l]
+
+            #have to flatten the paramters (i.e. make one long vector of all paramters) to calculate the jacobian later
+            flat_params_l, unflatten_func_l = flatten(params_l)
+            x_values.append(f_layer(flat_params_l,input_l,unflatten_func_l,activation_layers[l]))
+            # x_values.append(nonlinearity(np.dot(x_values[l-1], params_weights[l-1]) + params_biases[l-1]))
+        
+        # %%2. terminal error:
+        # print(l+1)
+        lambdas[l+1] = x_values[l+1]-targets[s] # recall there are 4 x_values but only 3 layers (parameter-valued)
+        # print(lambdas[3])
+        # 3. backward pass
+        # define jacobians: df/dx and df/dalpha, to be used later
+        jacob_f_to_x = jacobian(f_layer,argnum=1) # i.e. jacobian of f to its 1st argument: x / state
+        jacob_f_to_alpha = jacobian(f_layer,argnum=0) # i.e. jacobian of f to its 0th argument: alpha / parameters
+        for k in range(n_layers-2,-1,-1): # eq 12
+            # print("k =", k)
+            flat_params_k, unflatten_func_k = flatten(params_tot[k])
+            jac_notflat = jacob_f_to_x(flat_params_k,x_values[k],unflatten_func_k,activation_layers[k])
+            jac_x_k = jac_notflat[0,:,0,:]  # throw away extra dimension
+            # jac_x_k = np.squeeze(jac_notflat)#!!throws awy the wrong dimensiions
+            lambda_k = np.dot(jac_x_k.T,lambdas[k+1])
+            lambdas[k] = lambda_k
+            # lambdas[k] = 2*lambdas[k+1] # test if counter works correctly
+            
+        #%% 4. Parameter gradient (I guess this can also be done at the same time as the backward pass?)
+        jac_J_alphas =[] # store jacobian of cost wrt to alpha (eq 13)
+        for j in range(0,n_layers-1,1):
+            # print("j =", j)
+            flat_params_j, unflatten_func_j = flatten(params_tot[j])
+            jac_alpha_j_notFlat = jacob_f_to_alpha(flat_params_j,x_values[j],unflatten_func_j,activation_layers[j])
+            # jac_alpha_j = np.squeeze(jacob_f_to_alpha(flat_params_j,x_values[j],unflatten_func_j)) # does not get axes right
+            jac_alpha_j = jac_alpha_j_notFlat[0,:,:]
+            # print(jac_alpha_j.shape)
+            # print(lambdas[j+1].shape)
+            jac_J_alpha = np.dot(jac_alpha_j.T,lambdas[j+1])
+            jac_J_alphas.append(jac_J_alpha) # Jacobian of costwrt alpha
+        jac_J_alphas_samples.append(jac_J_alphas) # not very pretty coding this nested list
+    #%% 5. Move parameters in direction of gradient: equation 14. Because of the nested list of the gradients this looks a bit clumsy. 
+    for kk in range(n_layers-1):
+        # print("layer weights=", kk)
+        flat_params_kk, unflatten_func_kk = flatten(params_tot[kk])
+        grad_params = [i[kk] for i in jac_J_alphas_samples]
+        grad_params = np.squeeze(np.array(grad_params))
+        avg_grad = (1/s)*np.sum(grad_params,0)
+        flat_params_kk_upd = flat_params_kk - learning_rate*avg_grad
+        params_kk_upd = unflatten_func_kk(flat_params_kk_upd)
+        # store updated parameters:
+        params_tot[kk] = params_kk_upd
     
     
+#%% Compare intial and optimized:
+# init_loss = loss(params_init, 0)
+inputs = x.reshape(x.shape[-1],1)
+pred_init = predict2(params_init, inputs)
+pred_trained = predict2(params_tot, inputs)
 
- 
-# optimized_params = sgd(grad(loss), params, step_size=0.01, num_iters=5000)
-# print(optimized_params)
-# print(loss(optimized_params, 0))
-
-# final_y = predict(optimized_params, inputs)
-# plt.figure()
-# plt.plot(x, t, 'r.')
-# plt.plot(x, final_y, 'b-')
-
-#%%
+plt.figure()
+plt.plot(x, t, 'r.', label='data')
+plt.plot(x,pred_init, label='initial parameters')
+plt.plot(x,pred_trained, label ='trained parameters')
+plt.legend()
