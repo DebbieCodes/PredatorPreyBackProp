@@ -15,21 +15,6 @@ from autograd import grad
 from autograd import jacobian
 from autograd.misc import flatten # flatten_func
 
-from autograd.misc.optimizers import sgd
-
-# def sgd(grad, init_params, callback=None, num_iters=200, step_size=0.1, mass=0.9):
-#     """Stochastic gradient descent with momentum.
-#     grad() must have signature grad(x, i), where i is the iteration number."""
-#     flattened_grad, unflatten, x = flatten_func(grad, init_params)
-
-#     velocity = np.zeros(len(x))
-#     for i in range(num_iters):
-#         g = flattened_grad(x, i)
-#         if callback:
-#             callback(unflatten(x), i, unflatten(g))
-#         velocity = mass * velocity - (1.0 - mass) * g
-#         x = x + step_size * velocity
-#     return unflatten(x)
 
 #%% Generate synthetic data
 n_samples = 100
@@ -133,9 +118,9 @@ for tt in range(n_trainsteps):
         
         # %%2. terminal error:
         # print(l+1)
-        lambdas[l+1] = x_values[l+1]-targets[s] # recall there are 4 x_values but only 3 layers (parameter-valued)
+        lambdas[l+1] = x_values[l+1]-targets[s] 
         # print(lambdas[3])
-        # 3. backward pass
+        #%% 3. backward pass
         # define jacobians: df/dx and df/dalpha, to be used later
         jacob_f_to_x = jacobian(f_layer,argnum=1) # i.e. jacobian of f to its 1st argument: x / state
         jacob_f_to_alpha = jacobian(f_layer,argnum=0) # i.e. jacobian of f to its 0th argument: alpha / parameters
